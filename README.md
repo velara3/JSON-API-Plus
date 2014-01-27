@@ -11,68 +11,68 @@ The main thing is to know what information to pass to the API. It will either be
 
 When making a call append the query to the URL. So, if your site is at http://www.mysite.com/blog/ then the query would be appended as, "http://www.mysite.com/blog/?json=user/login".
 
-LOGIN
+LOGIN  
 Query:
 ?json=user/login
 
 The POST information should include:
-log = string
-pwd = string
-rememberme = true or false
+log = string  
+pwd = string  
+rememberme = true or false  
 
-REGISTER
-Query:
-?json=user/register
+REGISTER  
+Query:  
+?json=user/register  
 
-POST data:
-username = string
-email = string
+POST data:  
+username = string  
+email = string  
 
-LOST PASSWORD
-Query:
-?json=user/lost_password
+LOST PASSWORD  
+Query:  
+?json=user/lost_password  
 
-POST data:
-username = string
+POST data:  
+username = string  
 
-RESET PASSWORD / CONFIRM REGISTRATION
-Query:
-?json=user/reset_password&action=resetpass&key=" + key + "&login=" + username
+RESET PASSWORD / CONFIRM REGISTRATION  
+Query:  
+?json=user/reset_password&action=resetpass&key=" + key + "&login=" + username  
 
-POST data:
-pass1 = string
-pass2 = string
+POST data:  
+pass1 = string  
+pass2 = string  
 
-The user would have received the key in an email when they lost their password or registered for the first time. You must then include their new password in the post.
+The user would have received the key in an email when they lost their password or registered for the first time. You must then include their new password in the post.  
 
-LOGOUT
-Query:
-?json=user/logout"
+LOGOUT  
+Query:  
+?json=user/logout"  
 
-IS USER LOGGED IN
-Query:
-?json=user/is_user_logged_in"
+IS USER LOGGED IN  
+Query:  
+?json=user/is_user_logged_in"  
 
-GET LOGGED IN USER
-Query:
-?json=user/get_logged_in_user"
+GET LOGGED IN USER  
+Query:  
+?json=user/get_logged_in_user"  
 
-CHANGING THE EMAIL ADDRESS SENT TO THE USER
-When you reset your password or register you or your user receive an email from "wordpress@mysite.com". You can change by uncommenting the lines at the top of the User controller and filling them in with the email and name you want to use. You may have to actually create that mailbox on your server depending on your host.
+CHANGING THE EMAIL ADDRESS SENT TO THE USER  
+When you reset your password or register you or your user receive an email from "wordpress@mysite.com". You can change by uncommenting the lines at the top of the User controller and filling them in with the email and name you want to use. You may have to actually create that mailbox on your server depending on your host.  
 
-/** changing default wordpress email settings. uncomment to set your own email */
-add_filter('wp_mail_from', 'new_mail_from');
-add_filter('wp_mail_from_name', 'new_mail_from_name');
+/** changing default wordpress email settings. uncomment to set your own email */  
+add_filter('wp_mail_from', 'new_mail_from');  
+add_filter('wp_mail_from_name', 'new_mail_from_name');  
 
-function new_mail_from($old) {
-   return 'contact@yoursite.com';
-}
-function new_mail_from_name($old) {
-   return 'Your Site';
-}
+function new_mail_from($old) {  
+   return 'contact@yoursite.com';  
+}  
+function new_mail_from_name($old) {  
+   return 'Your Site';  
+}  
 
-It would be nice to have this on the settings page but I ran out of time and you would have to modify the main class which I want to avoid since it is out of my control.
+It would be nice to have this on the settings page but I ran out of time and you would have to modify the main class which I want to avoid since it is out of my control.  
 
-NOTE: Of course, if your site uses HTTPS rather than HTTP then make sure your calls are using that. 
+NOTE: Of course, if your site uses HTTPS rather than HTTP then make sure your calls are using that.   
 
-Also, when logging in, WordPress creates a set of authentication cookies so you need to enable that for whatever mechanism you are using. 
+Also, when logging in, WordPress creates a set of authentication cookies so you need to enable that for whatever mechanism you are using.   
