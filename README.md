@@ -3,11 +3,11 @@ JSON-API-Plus
 
 JSON-API Additions
 
-This project contains a controller class for User authentication for the WordPress JSON-API plug-in (http://wordpress.org/plugins/json-api/). It adds login, registration, logout, lost password, reset password, get logged in user and is user logged in methods. 
+This project contains a controller class for User authentication and Attachments for the WordPress JSON-API plug-in (http://wordpress.org/plugins/json-api/). It adds login, registration, logout, lost password, reset password, get logged in user and is user logged in methods. Support for WPMU has been added (3/28/2014) and adds additional support for registering users and sites. For WPMU the API is slightly different. Until documentation is updated view the user.php for parameters. 
 
-You will want to go through the documentation (http://wordpress.org/plugins/json-api/other_notes/) on the main plugin page (http://wordpress.org/plugins/json-api/) to get a feel for how it works. Once you do that the following will make more sense. If you need more help post questions to the forum here (http://wordpress.org/support/plugin/json-api).
+You will want to go through the documentation (http://wordpress.org/plugins/json-api/other_notes/) on the main plugin page (http://wordpress.org/plugins/json-api/) to get a feel for how it works. Once you do that the following instructions here will make more sense. If you need more help post questions to the forum here (http://wordpress.org/support/plugin/json-api).
 
-The main thing is to know what information to pass to the API. It will either be all in a GET request (in the URL query) or if more info is needed, in the POST data.
+The main thing is to know what information to pass to the API. It will either be all in a GET request (in the URL query) or if more info is needed, in the POST data. You may need to use a combination of both GET and POST data. 
 
 When making a call append the query to the URL. So, if your site is at http://www.mysite.com/blog/ then the query would be appended as, "http://www.mysite.com/blog/?json=user/login".
 
@@ -15,7 +15,7 @@ When making a call append the query to the URL. So, if your site is at http://ww
 Query:
 ?json=user/login
 
-The POST information should include:
+The POST information should include:  
 log = string  
 pwd = string  
 rememberme = true or false  
