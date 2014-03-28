@@ -110,10 +110,10 @@ class JSON_API_Post {
       $this->id = wp_insert_post($wp_values);
     }
     
-    // add custom fields - judah 
+    // add custom fields - monkeypunch3 
     if ( !empty($values["custom"]) ) {
         foreach ($values["custom"] as $metakey => $metavalue) {
-            update_post_meta($this->id,$metakey, $metavalue);
+            update_post_meta($this->id, $metakey, $metavalue);
         }
     }
     

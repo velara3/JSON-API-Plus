@@ -1,36 +1,56 @@
 <?php
 /*
 Controller name: User
-Controller description: Methods for user management
+Controller description: Adds an API for user and site management. 
 
-Code is based on code from wp-login.php.
-Uses methods from wp-includes/user.php
+You can change the contact name and email that is sent to users 
+by setting global variables in wp_config.php. 
 
-Also adding code to change contact name and email
+For example, 
+define('JSON_API_EMAIL_FROM', "contact@mysite.com");
+define('JSON_API_EMAIL_FROM_NAME', "My Site Contact");
 */
 
-/** changing default wordpres email settings. uncomment to set your own email */
 add_filter('wp_mail_from', 'new_mail_from');
 add_filter('wp_mail_from_name', 'new_mail_from_name');
 
 function new_mail_from($old) {
-	return 'contact@radii8.com';
+	// define these values in wp_config.php
+	if (defined('JSON_API_EMAIL_FROM')) {
+		$email = JSON_API_EMAIL_FROM;
+	} else {
+		$email = $old;
+	}
+	return $email;
 }
+
 function new_mail_from_name($old) {
-	return 'Radii8';
+	if (defined('JSON_API_EMAIL_FROM_NAME')) {
+		$from = JSON_API_EMAIL_FROM_NAME;
+	} else {
+		$from = $old;
+	}
+	return $from;
 }
+
 
 class JSON_API_User_Controller {
 
-    public function is_user_logged_in() {
-        $result = $this->get_logged_in_user();
+	/**
+	 * Checks if user is logged in. Just calls get_logged_in_user(). 
+	 */
+	public function is_user_logged_in() {
+		$result = $this->get_logged_in_user();
 		
 		return $result;
-    }
-    
-    public function get_logged_in_user() {
-        global $user_ID;
-    	
+	}
+	
+	/**
+	 * Get the user that is logged in
+	 */
+	public function get_logged_in_user() {
+		global $user_ID;
+		
 		if (is_user_logged_in()) { // this refers to the global method not local
 			$loggedIn = (bool) true;
 		}
@@ -39,7 +59,7 @@ class JSON_API_User_Controller {
 		}
 		
 		$avatarURL = get_avatar($user_ID);
-        $user = get_userdata($user_ID);
+		$user = get_userdata($user_ID);
 		$dom = new DOMDocument();
 		$dom->loadHTML($avatarURL);
 		$avatarURL = $dom->getElementsByTagName('img')->item(0)->getAttribute('src');
@@ -53,40 +73,64 @@ class JSON_API_User_Controller {
 		
 		if ($user) {
 			$result['displayName'] = $user->data->display_name;
+			$result['contact'] = $user->data->user_email;
+		}
+		
+		if (is_multisite()) {
+			$user_blogs = get_blogs_of_user( $user_ID );
+			$result['blogs'] = $user_blogs;
 		}
 		
 		return $result;
-    }
-    
-    public function logout() {
-    	/*
-    	// from wp-login.php: 
-    	check_admin_referer('log-out');
-		wp_logout();
-    	*/
-    
-        wp_logout();
-        wp_set_current_user(0); // force immediate logout
-        
-        $results = $this->get_logged_in_user();
-        
-	    return $results;
-    }
-    
-    public function login() {
-        global $json_api;
-    	
-		$secure_cookie = '';
-		$interim_login = isset($_REQUEST['interim-login']);
+	}
 	
-		// code from wp-login.php not used at this time
+	/**
+	 * Logout user.
+	 */
+	public function logout() {
+	
+		wp_logout();
+		wp_set_current_user(0); // force immediate logout
+		
+		// would like to clear all cookies - wp_logout() may do this
+		//$reauth = empty($_REQUEST['reauth']) ? false : true;
+		
+		// Clear any stale cookies.
+		//if ( $reauth ) {
+		//	wp_clear_auth_cookie();
+		//}
+		
+		$results = $this->get_logged_in_user();
+		
+		return $results;
+	}
+	
+	/**
+	 * Login user. SSL support is not tested. 
+	 */
+	public function login() {
+		global $json_api;
+		
+		$secure_cookie = '';
+	
 		// If the user wants ssl but the session is not ssl, force a secure cookie.
 		if ( !empty($_POST['log']) && !force_ssl_admin() ) {
 			$user_name = sanitize_user($_POST['log']);
 			if ( $user = get_user_by('login', $user_name) ) {
+				
+				// i'm guessing the user can change their login options to work with SSL
 				if ( get_user_option('use_ssl', $user->ID) ) {
 					$secure_cookie = true;
-					//force_ssl_admin(true);
+					
+					//passing true to like so, force_ssl_admin(true), makes force_ssl_admin() return true and vice versa
+					//force_ssl_admin(true); http://codex.wordpress.org/Function_Reference/force_ssl_admin
+					
+					// we are declaring error but not returning it for now
+					$errors = new WP_Error();
+					$errors->add('use_ssl', __("The login must use ssl."));
+					
+					// not implemeted now
+					//return $errors;
 				}
 				
 			}
@@ -103,7 +147,7 @@ class JSON_API_User_Controller {
 		}
 		
 	
-		//$reauth = empty($_REQUEST['reauth']) ? false : true;
+		$reauth = empty($_REQUEST['reauth']) ? false : true;
 	
 		
 		// If the user was redirected to a secure login form from a non-secure admin page, and secure login is required but secure admin is not, then don't use a secure
@@ -116,7 +160,7 @@ class JSON_API_User_Controller {
 		
 		//$user = wp_authenticate_username_password('', $_POST['log'], $_POST['pwd']);
 		$user = wp_signon('', $secure_cookie);
-			
+		
 		if (is_wp_error($user)) {
 		
 			// user is an error object
@@ -166,13 +210,8 @@ class JSON_API_User_Controller {
 		}
 	
 		//if (!$reauth) {
-			if ( $interim_login ) {
-				$message = "Login successful interim";
-			}
-			else {
-				$message = "Login successful";
-			}
 	
+			// does not redirect
 			if ( ( empty( $redirect_to ) || $redirect_to == 'wp-admin/' || $redirect_to == admin_url() ) ) {
 				// If the user doesn't belong to a blog, send them to user admin. If the user can't edit posts, send them to their profile.
 				if ( is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin( $user->ID ) ) {
@@ -185,80 +224,23 @@ class JSON_API_User_Controller {
 					$redirect_to = admin_url('profile.php');
 				}
 			}
-			//wp_safe_redirect($redirect_to);
+			
 			
 			wp_set_current_user( $user->ID );
 			
 			$user = $this->get_logged_in_user();
 			
+			// left in redirect_to since we could return the value later if we wanted
+			
 			return $user;
 		//}
 		
-    }
-    
-    public function register() {
-    	
-    	if ( is_multisite() ) {
-			// Multisite uses wp-signup.php
-			// Mulitsite not implemented at this time
-			//wp_redirect( apply_filters( 'wp_signup_location', site_url('wp-signup.php') ) );
-			//exit;
-			
-			$error = new WP_Error();
-			$error->add('multisite_not_supported', __('Multisite is not supported at this time.'));
-			
-			return $error;
-		}
-
-		if (!get_option('users_can_register')) {
-			$error = new WP_Error();
-			$error->add('users_cannot_register', __('Registration is not enabled for this site.'));
-			
-			return $error;
-		}
-
-		$user_login = '';
-		$user_email = '';
-		
-		
-		if ( empty($_POST['username']) || empty($_POST['email']) ) {
-			$errors = new WP_Error();
-			
-			if (empty($_POST['username'])) {
-				$errors->add('username_required', __("A username is required."));
-			}
-			
-			if (empty($_POST['email'])) {
-				$errors->add('email_required', __("A email is required."));
-			}
-		
-			return $errors;
-		}
-		
-		$user_login = $_POST['username'];
-		$user_email = $_POST['email'];
-			
-		$result = register_new_user($user_login, $user_email);
-		
-		if (is_wp_error($result)) {
-			return $result;
-		}
-		
-		return array(
-			'id' => $result,
-			'status' => "ok",
-			'created' => (bool) true
-		);
-		
-		return $user_login;
-		return $error;
-
-		//$redirect_to = apply_filters( 'registration_redirect', !empty( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '' );
-		//login_header(__('Registration Form'), '<p class="message register">' . __('Register For This Site') . '</p>', $errors);
-    
-    }
-    
-    public function lost_password() {
+	}
+	
+	/**
+	 * Retrieve lost password for user. 
+	 */
+	public function lost_password() {
 		global $wpdb, $current_site;
 
 		$errors = new WP_Error();
@@ -321,7 +303,7 @@ class JSON_API_User_Controller {
 		$message .= sprintf(__('Passkey: %s'), $key) . "\r\n\r\n";
 		$message .= __('If this was a mistake, just ignore this email and nothing will happen.') . "\r\n\r\n";
 		$message .= __('To reset your password, enter the passkey at the lost password screen.') . "\r\n\r\n";
-		//$message .= __('To reset your password, visit the following address:') . "\r\n\r\n";
+		//$message .= __('Or visit the following address:') . "\r\n\r\n";
 		//$message .= '<' . network_site_url("wp-login.php?action=rp&key=$key&login=" . rawurlencode($user_login), 'login') . ">\r\n";
 
 		if ( is_multisite() ) {
@@ -330,17 +312,15 @@ class JSON_API_User_Controller {
 		else {
 			// The blogname option is escaped with esc_html on the way into the database in sanitize_option
 			// we want to reverse this for the plain text arena of emails.
-			$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);    
-    	}
-    
+			$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);	
+		}
+	
 		$title = sprintf( __('[%s] Password Reset'), $blogname );
 
 		$title = apply_filters('retrieve_password_title', $title);
 		$message = apply_filters('retrieve_password_message', $message, $key);
 
-		//global $from_name;
-		//$from_name = 'Dude';
-		
+		// email user
 		if ( $message && !wp_mail($user_email, $title, $message) ) {
 			$errors->add('email_not_sent', __('The e-mail could not be sent. Possible reason: your host may have disabled the mail() function.'));
 		}
@@ -352,10 +332,13 @@ class JSON_API_User_Controller {
 		);
 		
 		return $result;
-    }
-    
-    public function reset_password() {
-    	global $wpdb;
+	}
+	
+	/**
+	 * Reset user password
+	 */
+	public function reset_password() {
+		global $wpdb;
 		
 		$key = $_GET['key'];
 		$login = $_GET['login'];
@@ -380,6 +363,7 @@ class JSON_API_User_Controller {
 			return $errors;
 		}
 
+		// was getting errors with external call so calling method here- should retry to use wp methods
 		$user = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->users WHERE user_activation_key = %s AND user_login = %s", $key, $login));
 
 		if ( empty( $user ) ) {
@@ -403,7 +387,560 @@ class JSON_API_User_Controller {
 		);
 		
 		return $result;
-    }
+	}
+	
+	/**
+	 * Registers a new user. Supports multisite.
+	 */
+	public function register() {
+		
+		if (!get_option('users_can_register')) {
+			$error = new WP_Error();
+			$error->add('users_cannot_register', __('Registration is not enabled for this site.'));
+			return $error;
+		}
+		
+		$user_name = $_POST['user_name'];
+		$user_email = $_POST['user_email'];
+		
+		if ( empty($user_name) || empty($user_email) ) {
+			$errors = new WP_Error();
+				
+			if (empty($user_name)) {
+				$errors->add('username_required', __("A username is required."));
+			}
+				
+			if (empty($user_email)) {
+				$errors->add('email_required', __("A email is required."));
+			}
+	
+			return $errors;
+		}
+		
+		$result = wpmu_validate_user_signup($user_name, $user_email);
+		extract($result);
+		
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+		
+		/** This filter is documented in wp-signup.php */
+		$meta = apply_filters( 'add_signup_meta', array() );
+		
+		// this also sends out email 
+		if (is_multisite()) {
+			
+			// Note: filters and admin options determine if an email is sent to the user
+			// however, the user will still be signed up
+			
+			// this call was taking up to a minute
+			// update- after more testing, a lot of calls were taking a while 
+			// the problem fixed itself after a few minutes to half an hour
+			$emailSent = wpmu_signup_user( $user_name, $user_email, $meta );
+			$user = get_user_by('login', $user_name);
+			$userId = $user ? $user->ID:-1; // seems to be null??
+		}
+		else {
+			$userId = register_new_user($user_name, $user_email);
+		}
+		
+		if (is_wp_error($result)) {
+			return $result;
+		}
+		
+		$result = array(
+				'status'	=> 'ok',
+				'user_name' => $user_name,
+				'user_email'=> $user_email,
+				'created'	=> (bool) true,
+		);
+		
+		// multisite call returns -1 so not consistent
+		// i'm guessing user must activate their account to get an id
+		//if ($userId!=-1) {
+		//	$result['id'] = $userId;
+		//}
+		
+		return $result;
+	}
+	
+	/************************
+	 * Multisite Support
+	 ***********************/
+	
+	
+	/**
+	 * Multisite uses code from wp-signup.php
+	 */
+	public function register_user_and_site() {
+		
+		if (!get_option('users_can_register')) {
+			$error = new WP_Error();
+			$error->add('users_cannot_register', __('Registration is not enabled for this site.'));
+			 
+			return $error;
+		}
+		
+		// support for blog defaults not yet added 
+		// may not be necessary or approapriate here
+		// from wp-signup.php
+		
+// 		$signup_blog_defaults = array(
+// 				'user_name'  => $user_name,
+// 				'user_email' => $user_email,
+// 				'blogname'   => $blogname,
+// 				'blog_title' => $blog_title,
+// 				'errors'     => $errors
+// 		);
+		
+		/**
+		 * Filter the default site creation variables for the site sign-up form.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param array $signup_blog_defaults {
+		 *     An array of default site creation variables.
+		 *
+		 *     @type string $user_name  The user username.
+		 *     @type string $user_email The user email address.
+		 *     @type string $blogname   The blogname.
+		 *     @type string $blog_title The title of the site.
+		 *     @type array  $errors     An array of possible errors relevant to new site creation variables.
+		 * }
+		 */
+// 		$filtered_results = apply_filters( 'signup_blog_init', $signup_blog_defaults );
+		
+// 		$user_name = $filtered_results['user_name'];
+// 		$user_email = $filtered_results['user_email'];
+// 		$blogname = $filtered_results['blogname'];
+// 		$blog_title = $filtered_results['blog_title'];
+// 		$errors = $filtered_results['errors'];
+		
+// 		if ( empty($blogname) ) {
+// 			$blogname = $user_name;
+// 		}
+
+		// end blog defaults
+
+		$newblogname = isset($_POST['blogname']) ? strtolower(preg_replace('/^-|-$|[^-a-zA-Z0-9]/', '', $_POST['blogname'])) : null;
+		
+		if ( is_array( get_site_option( 'illegal_names' )) && isset( $newblogname ) && in_array( $newblogname, get_site_option( 'illegal_names' ) ) == true ) {
+			$error = new WP_Error();
+			$error->add('illegal_name', __('This site name is not allowed.'));
+			return $error;
+		}
+		
+		if ( empty($_POST['user_name']) || empty($_POST['user_email']) ) {
+			$errors = new WP_Error();
+		
+			if (empty($_POST['user_name'])) {
+				$errors->add('username_required', __("A username is required."));
+			}
+		
+			if (empty($_POST['user_email'])) {
+				$errors->add('email_required', __("A email is required."));
+			}
+		
+			return $errors;
+		}
+		
+		// user should not be logged in when calling this method
+		$result = wpmu_validate_user_signup($_POST['user_name'], $_POST['user_email']);
+		extract($result);
+	
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+			
+		$user = '';
+			
+		if ( is_user_logged_in() ) {
+			$user = wp_get_current_user();
+		}
+		
+		$result = wpmu_validate_blog_signup($newblogname, $_POST['blog_title'], $user);
+		extract($result);
+		
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+		
+		$public = (int) $_POST['blog_public'];
+		$meta = array ('lang_id' => 1, 'public' => $public);
+		
+		/** This filter is documented in wp-signup.php */
+		$meta = apply_filters( 'add_signup_meta', $meta );
+		
+		wpmu_signup_blog($domain, $path, $blog_title, $user_name, $user_email, $meta);
+		
+		$blog = get_blog_details(array('domain'=>$domain, 'path'=>$path));
+		
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+		
+		// creates message for user - not necessary
+		$message = $this->confirm_blog_signup($domain, $path, $blog_title, $user_name, $user_email, $meta);
+		
+		$result = array(
+				'message'	=>$message,
+				'user_name' =>$user_name,
+				'user_email'=>$user_email,
+				'blogname'	=>$newblogname,
+				'blog_title'=>$blog_title,
+				'blog' 		=>$blog
+		);
+		
+		$result = array(
+				'created'	=> true,
+				'site' 		=> $result
+		);
+		
+		return $result;
+		
+	}
+	
+	/**
+	 * New site signup message
+	 *
+	 * @since MU
+	 *
+	 * @param string $domain The domain URL
+	 * @param string $path The site root path
+	 * @param string $blog_title The new site title
+	 * @param string $user_name The user's username
+	 * @param string $user_email The user's email address
+	 * @param array $meta Any additional meta from the 'add_signup_meta' filter in validate_blog_signup()
+	 */
+	function confirm_blog_signup( $domain, $path, $blog_title, $user_name = '', $user_email = '', $meta = array() ) {
+		$site = "<a href='http://{$domain}{$path}'>{$blog_title}</a>";
+		//$site = "<a href='http://{$domain}{$path}'>{$blog_title}</a>";
+		$message = __( 'Congratulations! Your new site, '.$blog_title.', is almost ready.' );
+		
+		//$message .= _e( 'But, before you can start using your site, <strong>you must activate it</strong>.' );
+		$message .= __( ' But, before you can start using your site, you must activate it.' );
+		$message .= __( ' Check your inbox at '.$user_email.' and click the link given.' );
+		$message .= __( ' If you do not activate your site within two days, you will have to sign up again.' );
+		$message .= "\n";
+		$message .= __( ' Still waiting for your email?' );
+		$message .=  __( " If you haven't received your email yet, there are a number of things you can do:" );
+		$message .=  __( ' Wait a little longer. Sometimes delivery of email can be delayed by processes outside of our control.' );
+		$message .= __( ' Check the junk or spam folder of your email client. Sometime emails wind up there by mistake.' );
+		//$message .= __( ' Have you entered your email correctly? You have entered '.$user_email.', if it&#8217;s incorrect, you will not receive your email.' );
+		$message .= __( ' Have you entered your email correctly? You have entered '.$user_email.", if it's incorrect, you will not receive your email." );
+		
+		return $message;
+	}
+
+	
+	/**
+	 * Registers a new blog. User must be logged in to create a new site. 
+	 *
+	 * @since MU
+	 *
+	 * @uses wp_get_current_user() to retrieve the current user
+	 * @uses wpmu_validate_blog_signup() to validate site availability
+	 * @uses wpmu_create_blog() to add a new site
+	 * @return bool Object containing site information or errors object if error
+	 */
+	function register_site() {
+		global $wpdb, $blogname, $blog_title, $errors, $domain, $path;
+		
+		if ( !is_user_logged_in() ) {
+			$error = new WP_Error();
+			$error->add('user', __('You must be logged in to create a site.'));
+			return $error;
+		}
+		
+		if ( is_array( get_site_option( 'illegal_names' )) && isset( $_POST['blogname'] ) && in_array( $_POST['blogname'], get_site_option( 'illegal_names' ) ) == true ) {
+			$error = new WP_Error();
+			$error->add('illegal_name', __('This site name is not allowed.'));
+			return $error;
+		}
+		
+		$newblogname = isset($_POST['blogname']) ? strtolower(preg_replace('/^-|-$|[^-a-zA-Z0-9]/', '', $_POST['blogname'])) : null;
+		
+		$user = '';
+		
+		if ( is_user_logged_in() ) {
+			$user = wp_get_current_user();
+		}
+		
+		$result = wpmu_validate_blog_signup($newblogname, $_POST['blog_title'], $user);
+		extract($result);
+	
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+	
+		$public = (int) $_POST['blog_public'];
+	
+		$blog_meta_defaults = array(
+				'lang_id' => 1,
+				'public'  => $public
+		);
+	
+		/**
+		 * Filter the new site meta variables.
+		 *
+		 * @since MU
+		 * @deprecated 3.0.0 Use the 'add_signup_meta' filter instead.
+		 *
+		 * @param array $blog_meta_defaults An array of default blog meta variables.
+		 */
+		$meta = apply_filters( 'signup_create_blog_meta', $blog_meta_defaults );
+		
+		/**
+		 * Filter the new default site meta variables.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param array $meta {
+		 *     An array of default site meta variables.
+		 *
+		 *     @type int $lang_id     The language ID.
+		 *     @type int $blog_public Whether search engines should be discouraged from indexing the site. 1 for true, 0 for false.
+		 * }
+		 */
+		$meta = apply_filters( 'add_signup_meta', $meta );
+	
+		$result = wpmu_create_blog( $domain, $path, $blog_title, $current_user->ID, $meta, $wpdb->siteid );
+		
+		if ( $errors->get_error_code() ) {
+			return $errors;
+		}
+		
+		$result = array(
+				'blogname'	=>$newblogname,
+				'blog_title'=>$blog_title,
+		);
+		
+		$result = array(
+				'status'	=> 'ok',
+				'created'	=> true,
+				'site' 		=> $result
+		);
+		
+		return $result;
+	}
+	
+	/**
+	 * Returns the current site info
+	 */
+	public function get_current_site() {
+		
+		return get_current_site();
+	}
+	
+	/**
+	 * Returns if site is multisite
+	 */
+	public function is_multisite() {
+		$result = array(
+				'status'=>'ok',
+				'multisite'=>is_multisite()
+				);
+		
+		return $result;
+	}
+	
+	/**
+	 * Returns if the user is on the main site. 
+	 */
+	public function is_mainsite() {
+		
+		$result = array(
+				'status'=>'ok',
+				'mainsite'=>is_main_site()
+		);
+		 
+		return $result;
+	}
+	
+	/**
+	 * Returns if multisite is using sub domain or sub folder.  
+	 */
+	public function is_subdomain_install() {
+		
+		$result = array(
+				'subdomain'=>is_subdomain_install(),
+				'subfolder'=>!is_subdomain_install()
+		);
+		
+		return $result;
+	}
+
+	/**
+	 * Template for creating a new user for a blog, adding an existing user to a blog, 
+	 * removing a user from a blog, and promoting a user. 
+	 * NOT IMPLEMENTED
+	 * Code is from site-users.php
+	 */
+	private function addAction($action) {
+		
+		/*
+		switch ( $action ) {
+			case 'newuser':
+				check_admin_referer( 'add-user', '_wpnonce_add-new-user' );
+				$user = $_POST['user'];
+				if ( ! is_array( $_POST['user'] ) || empty( $user['username'] ) || empty( $user['email'] ) ) {
+					$update = 'err_new';
+				} else {
+					$password = wp_generate_password( 12, false);
+					$user_id = wpmu_create_user( esc_html( strtolower( $user['username'] ) ), $password, esc_html( $user['email'] ) );
+		
+					if ( false == $user_id ) {
+						$update = 'err_new_dup';
+					} else {
+						wp_new_user_notification( $user_id, $password );
+						add_user_to_blog( $id, $user_id, $_POST['new_role'] );
+						$update = 'newuser';
+					}
+				}
+				break;
+		
+			case 'adduser':
+				check_admin_referer( 'add-user', '_wpnonce_add-user' );
+				if ( !empty( $_POST['newuser'] ) ) {
+					$update = 'adduser';
+					$newuser = $_POST['newuser'];
+					$user = get_user_by( 'login', $newuser );
+					if ( $user && $user->exists() ) {
+						if ( ! is_user_member_of_blog( $user->ID, $id ) )
+							add_user_to_blog( $id, $user->ID, $_POST['new_role'] );
+						else
+							$update = 'err_add_member';
+					} else {
+						$update = 'err_add_notfound';
+					}
+				} else {
+					$update = 'err_add_notfound';
+				}
+				break;
+		
+			case 'remove':
+				if ( ! current_user_can( 'remove_users' )  )
+					die(__('You can&#8217;t remove users.'));
+				check_admin_referer( 'bulk-users' );
+		
+				$update = 'remove';
+				if ( isset( $_REQUEST['users'] ) ) {
+					$userids = $_REQUEST['users'];
+		
+					foreach ( $userids as $user_id ) {
+						$user_id = (int) $user_id;
+						remove_user_from_blog( $user_id, $id );
+					}
+				} elseif ( isset( $_GET['user'] ) ) {
+					remove_user_from_blog( $_GET['user'] );
+				} else {
+					$update = 'err_remove';
+				}
+				break;
+		
+			case 'promote':
+				check_admin_referer( 'bulk-users' );
+				$editable_roles = get_editable_roles();
+				if ( empty( $editable_roles[$_REQUEST['new_role']] ) )
+					wp_die(__('You can&#8217;t give users that role.'));
+		
+				if ( isset( $_REQUEST['users'] ) ) {
+					$userids = $_REQUEST['users'];
+					$update = 'promote';
+					foreach ( $userids as $user_id ) {
+						$user_id = (int) $user_id;
+		
+						// If the user doesn't already belong to the blog, bail.
+						if ( !is_user_member_of_blog( $user_id ) )
+							wp_die(__('Cheatin&#8217; uh?'));
+		
+						$user = get_userdata( $user_id );
+						$user->set_role( $_REQUEST['new_role'] );
+					}
+				} else {
+					$update = 'err_promote';
+				}
+				break;
+				
+			//reset( $editblog_roles );
+			//foreach ( $editblog_roles as $role => $role_assoc ) {
+			//	$name = translate_user_role( $role_assoc['name'] );
+			//	echo '<option ' . selected( $default_role, $role, false ) . ' value="' . esc_attr( $role ) . '">' . esc_html( $name ) . '</option>';
+			//}
+		}
+		
+
+		restore_current_blog();
+
+		*/
+	}
+	
+	/**
+	 * Get blog details 
+	 */
+	public function get_blog() {
+		$fields = array();
+		
+		if ( isset( $_REQUEST['domain'] ) ) {
+			$fields['domain'] = $_REQUEST['domain'];
+		}
+		
+		if ( isset( $_REQUEST['path'] ) ) {
+			$fields['path'] = $_REQUEST['path'];
+		}
+		
+		if ( isset( $_REQUEST['blogname'] ) ) {
+			$fields['blogname'] = $_REQUEST['blogname'];
+		}
+		
+		if ( isset( $_REQUEST['blog_id'] ) ) {
+			$fields['blog_id'] = $_REQUEST['blog_id'];
+		}
+		
+		$blog = get_blog_details($fields);
+		
+		return $blog;
+	}
+	
+	/**
+	 * Get a list of users 
+	 * NOT IMPLEMENTED
+	 */
+	private function get_users() {
+		
+	}
+	
+	/**
+	 * Promote user
+	 * NOT IMPLEMENTED
+	 */
+	private function promote_user() {
+		
+	}
+	
+	/**
+	 * Remove user
+	 * NOT IMPLEMENTED
+	 */
+	private function remove_user() {
+		
+	}
+	
+	/**
+	 * Add new user to blog
+	 * NOT IMPLEMENTED
+	 */
+	private function add_new_user() {
+		
+	}
+	
+	/**
+	 * Add existing user to blog
+	 * NOT IMPLEMENTED
+	 */
+	private function add_existing_user() {
+		
+	}
 }
 
 ?>

@@ -15,6 +15,11 @@ class JSON_API_Projects_Controller {
 		$category = $json_api->introspector->get_category_by_slug("project");
 		$status = $json_api->query->status;
 		
+		// Make sure we have the category
+		if (!$category) {
+			$json_api->error("The project category does not exist.");
+		}
+		
 		if ( !is_user_logged_in() ) {
 			$status = "publish";
 		}
@@ -26,7 +31,7 @@ class JSON_API_Projects_Controller {
 	    
 	    // Make sure we have required params
 	    if ($json_api->query->user_id) {
-	    	return "something";
+	    	//return "something";
 			$query['author'] = $json_api->query->user_id;;
 	    }
 	    
@@ -47,6 +52,11 @@ class JSON_API_Projects_Controller {
 		$category = $json_api->introspector->get_category_by_slug("project");
 		$status = $json_api->query->status;
 		
+		// Make sure we have the category
+		if (!$category) {
+			$json_api->error("The project category does not exist.");
+		}
+		
 		if ( !is_user_logged_in() ) {
 			$status = "publish";
 		}
@@ -63,31 +73,12 @@ class JSON_API_Projects_Controller {
 	    	$query['author'] = $user_id;
 	    }
 	    
+		//return $query;
 	    $posts = $json_api->introspector->get_posts($query);
 	    
 	    return $this->posts_result($posts);
 	}
   
-  
-	public function get_categories($args = null) {
-	  global $json_api;
-	  $wp_categories = $json_api->introspector->get_categories($args);
-		
-	  //$categories = array();
-	  
-	  //foreach ($wp_categories as $wp_category) {
-	  //  if ($wp_category->term_id == 1 && $wp_category->slug == 'uncategorized') {
-	  //    continue;
-	  //  }
-	  //  $categories[] = $this->get_category_object($wp_category);
-	  //}
-	  
-	  $output = array();
-	  
-	  $output['attachments'] = $json_api->introspector->get_categories($args);
-	  
-	  return $output;
-	}
   
 	// Retrieve posts based on custom field key/value pair
 	public function get_custom_posts() {
