@@ -11,7 +11,7 @@ The main thing is to know what information to pass to the API. It will either be
 
 When making a call append the query to the URL. So, if your site is at http://www.mysite.com/blog/ then the query would be appended as, "http://www.mysite.com/blog/?json=user/login".
 
-LOGIN  
+**LOGIN**  
 Query:
 ?json=user/login
 
@@ -20,7 +20,7 @@ log = string
 pwd = string  
 rememberme = true or false  
 
-REGISTER  
+**REGISTER**  
 Query:  
 ?json=user/register  
 
@@ -45,24 +45,24 @@ pass2 = string
 
 The user would have received the key in an email when they lost their password or registered for the first time. You must then include their new password in the post.  
 
-LOGOUT  
+**LOGOUT**  
 Query:  
 ?json=user/logout"  
 
-IS USER LOGGED IN  
+**IS USER LOGGED IN**  
 Query:  
 ?json=user/is_user_logged_in"  
 
-GET LOGGED IN USER  
+**GET LOGGED IN USER**  
 Query:  
 ?json=user/get_logged_in_user"  
 
-CHANGING THE EMAIL ADDRESS SENT TO THE USER  
+**CHANGING THE EMAIL ADDRESS SENT TO THE USER**  
 When you reset your password or register you or your user receive an email from "wordpress@mysite.com". You can use your own email and email name by defining the global variables, JSON_API_EMAIL_FROM and JSON_API_EMAIL_FROM_NAME in wp_config.php. You may have to actually create the mailbox you specify on your server depending on your host.  
 
-//changing the email and name for emails sent with the User controller
-define('JSON_API_EMAIL_FROM', "contact@mysite.com");
-define('JSON_API_EMAIL_FROM_NAME', "My Site");
+//changing the email and name for emails sent with the User controller  
+define('JSON_API_EMAIL_FROM', "contact@mysite.com");  
+define('JSON_API_EMAIL_FROM_NAME', "My Site");  
 
 
 NOTE: If your site uses HTTPS rather than HTTP then make sure your calls are using that.   
