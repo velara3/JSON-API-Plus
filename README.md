@@ -58,21 +58,13 @@ Query:
 ?json=user/get_logged_in_user"  
 
 CHANGING THE EMAIL ADDRESS SENT TO THE USER  
-When you reset your password or register you or your user receive an email from "wordpress@mysite.com". You can change by uncommenting the lines at the top of the User controller and filling them in with the email and name you want to use. You may have to actually create that mailbox on your server depending on your host.  
+When you reset your password or register you or your user receive an email from "wordpress@mysite.com". You can use your own email and email name by defining the global variables, JSON_API_EMAIL_FROM and JSON_API_EMAIL_FROM_NAME in wp_config.php. You may have to actually create the mailbox you specify on your server depending on your host.  
 
-/** changing default wordpress email settings. uncomment to set your own email */  
-add_filter('wp_mail_from', 'new_mail_from');  
-add_filter('wp_mail_from_name', 'new_mail_from_name');  
+//changing the email and name for emails sent with the User controller
+define('JSON_API_EMAIL_FROM', "contact@mysite.com");
+define('JSON_API_EMAIL_FROM_NAME', "My Site");
 
-function new_mail_from($old) {  
-   return 'contact@yoursite.com';  
-}  
-function new_mail_from_name($old) {  
-   return 'Your Site';  
-}  
 
-It would be nice to have this on the settings page but I ran out of time and you would have to modify the main class which I want to avoid since it is out of my control.  
+NOTE: If your site uses HTTPS rather than HTTP then make sure your calls are using that.   
 
-NOTE: Of course, if your site uses HTTPS rather than HTTP then make sure your calls are using that.   
-
-Also, when logging in, WordPress creates a set of authentication cookies so you need to enable that for whatever mechanism you are using.   
+Also, when logging in, WordPress creates a set of authentication cookies so you need to enable that for whatever mechanism you are using. 
