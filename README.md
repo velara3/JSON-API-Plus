@@ -28,14 +28,14 @@ POST data:
 username = string  
 email = string  
 
-LOST PASSWORD  
+**LOST PASSWORD**  
 Query:  
 ?json=user/lost_password  
 
 POST data:  
 username = string  
 
-RESET PASSWORD / CONFIRM REGISTRATION  
+**RESET PASSWORD / CONFIRM REGISTRATION**  
 Query:  
 ?json=user/reset_password&action=resetpass&key=" + key + "&login=" + username  
 
