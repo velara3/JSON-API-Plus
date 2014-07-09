@@ -12,9 +12,9 @@ When you reset your password or register you or your user receive an email from 
 
 To do this go into wp_config.php and above the line that says, "/* That's all, stop editing! Happy blogging. */" add the following but use your own email and site name: 
 
-//changing the email and name for emails sent with the User controller
-define('JSON_API_EMAIL_FROM', "contact@mysite.com");
-define('JSON_API_EMAIL_FROM_NAME', "My Site");
+//changing the email and name for emails sent with the User controller  
+define('JSON_API_EMAIL_FROM', "contact@mysite.com");  
+define('JSON_API_EMAIL_FROM_NAME', "My Site");  
 
 NOTE: If your site uses HTTPS rather than HTTP then make sure your calls are using that. 
 
