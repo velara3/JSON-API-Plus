@@ -4,7 +4,145 @@ Controller name: Projects
 Controller description: Methods for getting projects
 */
 class JSON_API_Projects_Controller {
-
+	const PROJECT_HOME_PAGE = "project_home_page";
+	
+	/**
+	 * Get project home page 
+	 */
+	public function get_project_home_page() {
+		global $json_api;
+        global $user_ID;
+		
+		$user = wp_get_current_user();
+		$blog_id = get_current_blog_id();
+		
+		if ($user) {
+			//$user_id = $user->ID;
+			//$value = get_user_option(self::PROJECT_HOME_PAGE, $user_ID);
+			if (is_multisite()) {
+				$value = get_blog_option($blog_id, self::PROJECT_HOME_PAGE, 0);
+			}
+			else {
+				$value = get_option(self::PROJECT_HOME_PAGE, 0);
+			}
+			//$value = get_user_option(self::PROJECT_HOME_PAGE, $user_ID);
+		}
+		else {
+			$json_api->error("You must be logged in and have permissions to get the home page.");
+		}
+		
+		return array(
+				'value' => $value,
+				'status' => "ok");
+	}
+	
+	/**
+	 * Set project home page 
+	 */
+	public function set_project_home_page() {
+		global $json_api;
+        global $user_ID;
+		
+		if (!is_user_logged_in()) {
+			$json_api->error("You must be logged in to set the home page.");
+			return array('status' => "ok");
+		}
+		
+		//if (!is_admin()) {
+		if (!current_user_can( 'manage_options' )) {
+			$json_api->error("You do not have permission to set the home page.");
+			return array('status' => "ok");
+		}
+		
+		
+		// Make sure we have a page or post matching the id
+		$post_id = $json_api->query->id;
+		$blog_id = get_current_blog_id();
+		
+		$user = wp_get_current_user();
+		
+		if ($user) {
+			
+			if (is_multisite()) {
+				$oldValue = get_blog_option($blog_id, self::PROJECT_HOME_PAGE, 0);
+				$updated = update_blog_option($blog_id, self::PROJECT_HOME_PAGE, $post_id, false);
+				$newValue = get_blog_option($blog_id, self::PROJECT_HOME_PAGE, 0);
+			}
+			else {
+				$oldValue = get_option(self::PROJECT_HOME_PAGE, 0);
+				$updated = update_option(self::PROJECT_HOME_PAGE, $post_id, false);
+				$newValue = get_option(self::PROJECT_HOME_PAGE, 0);
+			}
+			
+			$post = get_post($post_id);
+			
+			if ($post) {
+				$postExists = true;
+				$status = $post->status;
+			}
+		}
+		else {
+			$updated = false;
+			$json_api->error("Post with that ID not found.");
+			
+			return array('status' => "ok");
+		}
+		
+		return array(
+			'postID' => $post_id,
+			'postExists' => $postExists,
+			'status' => $status,
+		    'updated' => $updated,
+		    'oldValue' => $oldValue,
+			'newValue' => $newValue,
+		    'status' => "ok");
+	}
+	
+	/**
+	 * Clear the project home page 
+	 */
+	public function clear_project_home_page() {
+		global $json_api;
+        global $user_ID;
+		
+		if (!is_user_logged_in()) {
+			$json_api->error("You must be logged in to set the home page.");
+			return array('status' => "ok");
+		}
+		
+		if (!current_user_can( 'manage_options' )) {
+			$json_api->error("You do not have permission to set the home page.");
+			return array('status' => "ok");
+		}
+		
+		$blog_id = get_current_blog_id();
+		$user = wp_get_current_user();
+		
+		if ($user) {
+			if (is_multisite()) {
+				$oldValue = get_blog_option($blog_id, self::PROJECT_HOME_PAGE, 0);
+				$updated = update_blog_option($blog_id, self::PROJECT_HOME_PAGE, $post_id, false);
+				$newValue = get_blog_option($blog_id, self::PROJECT_HOME_PAGE, 0);
+			}
+			else {
+				$oldValue = get_option(self::PROJECT_HOME_PAGE, 0);
+				$updated = update_option(self::PROJECT_HOME_PAGE, $post_id, false);
+				$newValue = get_option(self::PROJECT_HOME_PAGE, 0);
+			}
+		}
+		else {
+			$updated = false;
+			$json_api->error("Post with that ID not found.");
+			return array('status' => "ok");
+		}
+		
+		return array(
+		    'updated' => $updated,
+		    'oldValue' => $oldValue,
+			'newValue' => $newValue,
+		    'status' => "ok");
+	}
+	
     public function get_projects() {
         global $json_api;
         global $user_ID;
@@ -17,11 +155,14 @@ class JSON_API_Projects_Controller {
 		
 		// Make sure we have the category
 		if (!$category) {
-			$json_api->error("The project category does not exist.");
+			$json_api->error("The project category does not exist. Add a project category.");
 		}
 		
 		if ( !is_user_logged_in() ) {
 			$status = "publish";
+		}
+		else {
+			//$json_api->error("You must be logged in to get projects.");
 		}
 
 		$query = array(

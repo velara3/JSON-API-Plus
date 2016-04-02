@@ -35,6 +35,7 @@ function new_mail_from_name($old) {
 
 
 class JSON_API_User_Controller {
+	const PROJECT_HOME_PAGE = "project_home_page";
 
 	/**
 	 * Checks if user is logged in. Just calls get_logged_in_user(). 
@@ -53,9 +54,12 @@ class JSON_API_User_Controller {
 		
 		if (is_user_logged_in()) { // this refers to the global method not local
 			$loggedIn = (bool) true;
+			$user_blogs = get_blogs_of_user( $user_ID );
+			$blog_id = array_keys($user_blogs)[0];
 		}
 		else {
 			$loggedIn = (bool) false;
+			$blog_id = get_current_blog_id();
 		}
 		
 		$avatarURL = get_avatar($user_ID);
@@ -64,21 +68,42 @@ class JSON_API_User_Controller {
 		$dom->loadHTML($avatarURL);
 		$avatarURL = $dom->getElementsByTagName('img')->item(0)->getAttribute('src');
 		
+		//$details = get_blog_details();
+		
+		if ($loggedIn) {
+			if (is_multisite()) {
+				$projectHomePage = get_blog_option($blog_id, PROJECT_HOME_PAGE, 0);
+			}
+			else {
+				$projectHomePage = get_option(PROJECT_HOME_PAGE, 0);
+			}
+		}
+		else {
+			$projectHomePage = 0;
+		}
+		
+		
 		$result = array(
 			'id' => $user_ID,
 			'displayName' => "",
 			'loggedIn' => $loggedIn,
-			'avatar' => $avatarURL
+			'avatar' => $avatarURL,
+			'homePage' => $projectHomePage,
+			'blog_id' => $blog_id
 		);
 		
-		if ($user) {
+		if ($user && $loggedIn) {
+			$result['firstName'] = $user->data->first_name;
+			$result['lastName'] = $user->data->last_name;
+			$result['username'] = $user->data->user_login;
 			$result['displayName'] = $user->data->display_name;
 			$result['contact'] = $user->data->user_email;
 		}
 		
-		if (is_multisite()) {
-			$user_blogs = get_blogs_of_user( $user_ID );
+		if (is_multisite() && $loggedIn) {
 			$result['blogs'] = $user_blogs;
+			$result['user_blog_id'] = $blog_id;//->userblog_id; 
+			//$result['default_user_blog_id'] = get_blog_of_user( $user_ID );
 		}
 		
 		return $result;
@@ -417,8 +442,10 @@ class JSON_API_User_Controller {
 			return $errors;
 		}
 		
-		$result = wpmu_validate_user_signup($user_name, $user_email);
-		extract($result);
+		//if (is_multisite()) { should this be here?
+			$result = wpmu_validate_user_signup($user_name, $user_email);
+			extract($result);
+		//}
 		
 		if ( $errors->get_error_code() ) {
 			return $errors;
@@ -430,12 +457,11 @@ class JSON_API_User_Controller {
 		// this also sends out email 
 		if (is_multisite()) {
 			
-			// Note: filters and admin options determine if an email is sent to the user
-			// however, the user will still be signed up
+			// Note: filters and admin options can prevent the email from being sent
+			// but the user will still be signed up
 			
-			// this call was taking up to a minute
-			// update- after more testing, a lot of calls were taking a while 
-			// the problem fixed itself after a few minutes to half an hour
+			// this call was taking up to a minute!!! 
+			// update- a lot of calls were taking a while - not sure what is going on
 			$emailSent = wpmu_signup_user( $user_name, $user_email, $meta );
 			$user = get_user_by('login', $user_name);
 			$userId = $user ? $user->ID:-1; // seems to be null??
@@ -465,7 +491,7 @@ class JSON_API_User_Controller {
 	}
 	
 	/************************
-	 * Multisite Support
+	 * Multisite 
 	 ***********************/
 	
 	
@@ -551,9 +577,9 @@ class JSON_API_User_Controller {
 		if ( $errors->get_error_code() ) {
 			return $errors;
 		}
-			
+		
 		$user = '';
-			
+		
 		if ( is_user_logged_in() ) {
 			$user = wp_get_current_user();
 		}
@@ -634,7 +660,7 @@ class JSON_API_User_Controller {
 
 	
 	/**
-	 * Registers a new blog. User must be logged in to create a new site. 
+	 * Registers a new blog signup
 	 *
 	 * @since MU
 	 *
@@ -900,6 +926,15 @@ class JSON_API_User_Controller {
 		$blog = get_blog_details($fields);
 		
 		return $blog;
+		return $fields;
+	}
+	
+	/**
+	 * Get blog info
+	 * NOT IMPLEMENTED
+	 */
+	private function get_blog_info() {
+		
 	}
 	
 	/**
